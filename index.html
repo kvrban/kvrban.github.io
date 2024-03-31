@@ -32,6 +32,7 @@
 <body>
     <p id="message"></p>
     <img id="alert-image" src="banana-happy.gif" alt="Alert Image">
+    <p id="error"></p>
 
     <script>
         const address = new URLSearchParams(window.location.search).get('address');
@@ -39,38 +40,36 @@
         const audio = new Audio('bonus-points-190035.mp3'); // Use your audio file
         const alertImage = document.getElementById('alert-image');
 
-        (function(){
-            if (!address) {
-                document.getElementById('message').textContent = 'Please provide a Nano address in the URL.';
-                console.error('No Nano address provided in the URL.');
-                return;
-            }
-        });
+        if (!address) {
+            document.getElementById('error').textContent = 'Please provide a Nano address in the URL like: https://<url>?address=<nano-address>';
+            console.error('No Nano address provided in the URL.');
+        } else {
+            console.log('Nano address we subscribe to is:' + address);
+            console.log('Connecting to WebSocket...');
+            const ws = new WebSocket('wss://node.somenano.com/websocket');
 
-        console.log('Connecting to WebSocket...');
-        const ws = new WebSocket('wss://node.somenano.com/websocket');
+            ws.onopen = () => {
+                console.log('WebSocket connection opened.');
+                const data = {
+                    action: "subscribe",
+                    topic: "confirmation",
+                    options: {
+                        accounts: [address]
+                    }
+                };
+                ws.send(JSON.stringify(data));
+            };
 
-        ws.onopen = () => {
-            console.log('WebSocket connection opened.');
-            const data = {
-                action: "subscribe",
-                topic: "confirmation",
-                options: {
-                    accounts: [address]
+            ws.onmessage = (event) => {
+                const data = JSON.parse(event.data);
+                if (data.topic === 'confirmation' && data.message) {
+                    const amount = data.message.amount;
+                    const formattedAmount = formatNano(amount); // Function to format Nano amount 
+                    showAlert(formattedAmount);
+                    console.log('Transaction received for address:', address, 'Amount:', amount);
                 }
             };
-            ws.send(JSON.stringify(data));
-        };
-
-        ws.onmessage = (event) => {
-            const data = JSON.parse(event.data);
-            if (data.topic === 'confirmation' && data.message) {
-                const amount = data.message.amount;
-                const formattedAmount = formatNano(amount); // Function to format Nano amount 
-                showAlert(formattedAmount);
-                console.log('Transaction received for address:', address, 'Amount:', amount);
-            }
-        };
+        }
 
         function showAlert(formattedAmount) {
             message.textContent = `Transaction received for ${formattedAmount} Nano!`;
