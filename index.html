@@ -16,6 +16,10 @@
             /* Initially hide the message text */
             opacity: 0;
             transition: opacity 0.5s ease-in-out;  /* Add smooth transition */
+            text-shadow: 1.5px 0 2px #000, 0 -1.5px 2px #000, 0 1.5px 2px #000, -1.5px 0 2px #000; /* Readability shadow */
+        }
+        #message.show {
+            opacity: 1;
         }
         #alert-image {
             display: none;
@@ -35,15 +39,18 @@
     <p id="error"></p>
 
     <script>
-        const address = new URLSearchParams(window.location.search).get('address');
-        const message = document.getElementById('message');
-        const audio = new Audio('bonus-points-190035.mp3'); // Use your audio file
-        const alertImage = document.getElementById('alert-image');
+        ;(function(){
+            const address = new URLSearchParams(window.location.search).get('address');
+            const message = document.getElementById('message');
+            const audio = new Audio('bonus-points-190035.mp3'); // Use your audio file
+            const alertImage = document.getElementById('alert-image');
 
-        if (!address) {
-            document.getElementById('error').textContent = 'Please provide a Nano address in the URL like: https://<url>?address=<nano-address>';
-            console.error('No Nano address provided in the URL.');
-        } else {
+            if (!address) {
+                document.getElementById('error').textContent = 'Please provide a Nano address in the URL like: https://<url>?address=<nano-address>';
+                console.error('No Nano address provided in the URL.');
+                return;
+            }
+
             console.log('Nano address we subscribe to is:' + address);
             console.log('Connecting to WebSocket...');
             const ws = new WebSocket('wss://node.somenano.com/websocket');
@@ -62,39 +69,39 @@
 
             ws.onmessage = (event) => {
                 const data = JSON.parse(event.data);
-                if (data.topic === 'confirmation' && data.message) {
-                    const amount = data.message.amount;
-                    const formattedAmount = formatNano(amount); // Function to format Nano amount 
-                    showAlert(formattedAmount);
-                    console.log('Transaction received for address:', address, 'Amount:', amount);
-                }
+                if (data.topic !== 'confirmation' || !data.message)
+                    return;
+
+                const amount = data.message.amount;
+                const formattedAmount = formatNano(amount); // Function to format Nano amount 
+                showAlert(formattedAmount);
+                console.log('Transaction received for address:', address, 'Amount:', amount);
             };
-        }
 
-        function showAlert(formattedAmount) {
-            message.textContent = `Transaction received for ${formattedAmount} Nano!`;
-            message.style.opacity = 1; // Make message text visible
-            audio.play();
-            alertImage.style.display = 'block'; // Show image during alert
-            setTimeout(function() {
-                message.textContent = ''; // Clear message text
-                message.style.opacity = 0; // Hide message text again
-                alertImage.style.display = 'none'; // Hide image after 3 second
-            }, 3000);
-        }
+            function showAlert(formattedAmount) {
+                message.textContent = `Transaction received for ${formattedAmount} Nano!`;
+                message.classList.add("show"); // Make message text visible
+                audio.play();
+                alertImage.style.display = 'block'; // Show image during alert
+                setTimeout(function() {
+                    message.classList.remove("show"); // Hide message text again
+                    alertImage.style.display = 'none'; // Hide image after 3 second
+                }, 3000);
+            }
 
-        // Function to format Nano amount
-        function formatNano(rawAmount) {
-            const nanoInRaw = Math.pow(10, 30); // 1 Nano is equal to 10^30 raw
-            const nanoAmount = parseFloat(rawAmount) / nanoInRaw;
+            // Function to format Nano amount
+            function formatNano(rawAmount) {
+                const nanoInRaw = Math.pow(10, 30); // 1 Nano is equal to 10^30 raw
+                const nanoAmount = parseFloat(rawAmount) / nanoInRaw;
 
-            // Set a maximum number of decimal places (e.g., 10)
-            const maxDecimals = 10;
-            const formattedAmount = nanoAmount.toFixed(maxDecimals);
+                // Set a maximum number of decimal places (e.g., 10)
+                const maxDecimals = 10;
+                const formattedAmount = nanoAmount.toFixed(maxDecimals);
 
-            // Remove trailing zeros using regular expression
-            return formattedAmount.replace(/0+$/, '');
-        }
+                // Remove trailing zeros using regular expression
+                return formattedAmount.replace(/0+$/, '');
+            }
+        })();
     </script>
 </body>
 </html>
